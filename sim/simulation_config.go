@@ -7,6 +7,8 @@ type SimulationConfig struct {
 	Duration           time.Duration
 	TickInterval       time.Duration
 	CompactionInterval time.Duration
+	TaskDurationMean   time.Duration
+	TaskDurationStdDev time.Duration
 	WorkerCount        int
 	WorkerTaskSlots    int
 	TasksPerSecond     int
@@ -31,6 +33,20 @@ func (sc SimulationConfig) CompactionIntervalOrDefault() time.Duration {
 		return sc.CompactionInterval
 	}
 	return 15 * time.Minute
+}
+
+func (sc SimulationConfig) TaskDurationMeanOrDefault() time.Duration {
+	if sc.TaskDurationMean > 0 {
+		return sc.TaskDurationMean
+	}
+	return 100 * time.Millisecond
+}
+
+func (sc SimulationConfig) TaskDurationStdDevOrDefault() time.Duration {
+	if sc.TaskDurationStdDev > 0 {
+		return sc.TaskDurationStdDev
+	}
+	return 50 * time.Millisecond
 }
 
 func (sc SimulationConfig) WorkerCountOrDefault() int {

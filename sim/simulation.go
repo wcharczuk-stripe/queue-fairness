@@ -167,7 +167,7 @@ func (s *Simulation) randomNewTaskCount(elapsedSinceLastTick time.Duration) int 
 }
 
 func (s *Simulation) randomWorkDuration() time.Duration {
-	return time.Duration(RandomNormal(s.r, float64(100*time.Millisecond), float64(50*time.Millisecond)))
+	return time.Duration(RandomNormal(s.r, float64(s.Config.TaskDurationMeanOrDefault()), float64(s.Config.TaskDurationStdDevOrDefault())))
 }
 
 func (s *Simulation) randomNormal(desiredMean, desiredStdDev float64) float64 {
