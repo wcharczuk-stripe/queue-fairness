@@ -4,14 +4,19 @@ import "time"
 
 // SimulationConfig are parameters to the simulation.
 type SimulationConfig struct {
-	Duration           time.Duration
-	TickInterval       time.Duration
-	CompactionInterval time.Duration
-	TaskDurationMean   time.Duration
-	TaskDurationStdDev time.Duration
-	WorkerCount        int
-	WorkerTaskSlots    int
-	TasksPerSecond     int
+	Duration                 time.Duration
+	TickInterval             time.Duration
+	ResultsBucketingInterval time.Duration
+	TaskDurationMean         time.Duration
+	TaskDurationStdDev       time.Duration
+
+	PriorityWeights    map[Priority]int
+	FairnessKeyWeights map[string]int
+	FairnessWeights    map[string]float64
+
+	WorkerCount     int
+	WorkerTaskSlots int
+	TasksPerSecond  int
 }
 
 func (sc SimulationConfig) DurationOrDefault() time.Duration {
@@ -28,9 +33,9 @@ func (sc SimulationConfig) TickIntervalOrDefault() time.Duration {
 	return 500 * time.Millisecond
 }
 
-func (sc SimulationConfig) CompactionIntervalOrDefault() time.Duration {
-	if sc.CompactionInterval > 0 {
-		return sc.CompactionInterval
+func (sc SimulationConfig) ResultsBucketingIntervalOrDefault() time.Duration {
+	if sc.ResultsBucketingInterval > 0 {
+		return sc.ResultsBucketingInterval
 	}
 	return 15 * time.Minute
 }

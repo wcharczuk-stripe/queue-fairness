@@ -34,11 +34,12 @@ func (s *Simulation) Init() {
 func (s *Simulation) Simulate() SimulationResults {
 	startTime := s.Clock.Now()
 	var lastTimestamp, displayLastTimestamp, currentTimestamp time.Time = startTime, startTime, startTime
-	var resultsByHour resultsByHour
+	var resultsByBucket resultsByBucket
+
 	var resultState = &results{
 		tasks: make([]*Task, 0, 1_000_000),
 	}
-	for {
+	for { // hot loop
 		currentTimestamp = s.Clock.Now()
 		if currentTimestamp.Sub(startTime) > s.Config.DurationOrDefault() {
 			break
@@ -48,22 +49,22 @@ func (s *Simulation) Simulate() SimulationResults {
 		lastTimestamp = currentTimestamp
 		if displayLastTimestamp.IsZero() {
 			displayLastTimestamp = currentTimestamp
-		} else if currentTimestamp.Sub(displayLastTimestamp) >= s.Config.CompactionIntervalOrDefault() {
+		} else if currentTimestamp.Sub(displayLastTimestamp) >= s.Config.ResultsBucketingIntervalOrDefault() {
 			log(
-				fmt.Sprintf("compaction (%v)", s.Config.CompactionIntervalOrDefault()),
+				fmt.Sprintf("closing results bucket (by interval %v)", s.Config.ResultsBucketingIntervalOrDefault()),
 				logTag{"ts", currentTimestamp.Format("15:04")},
 				logTag{"elapsed", currentTimestamp.Sub(startTime)},
 				logTag{"tql", s.TaskQueue.Len()},
-				logTag{"tp", len(resultState.tasks)},
+				logTag{"ctp", len(resultState.tasks)},
 			)
-			resultsByHour = append(resultsByHour, resultState)
+			resultsByBucket = append(resultsByBucket, resultState)
+			displayLastTimestamp = currentTimestamp
 			resultState = &results{
 				tasks: make([]*Task, 0, 1_000_000),
 			}
-			displayLastTimestamp = currentTimestamp
 		}
 	}
-	return s.processResults(currentTimestamp, resultsByHour)
+	return s.processResults(currentTimestamp, resultsByBucket)
 }
 
 func (s *Simulation) generateWorkers() WorkerLookup {
@@ -128,36 +129,26 @@ func (s *Simulation) tickWorkerComplete(currentTimestamp time.Time, state *resul
 }
 
 func (s *Simulation) randomFairness() (fairnessKey string, fairness float64) {
+	if len(s.Config.FairnessWeights) == 0 {
+		return "", 1.0
+	}
 	fairnessKey = s.randomFairnessKey()
-	fairness = fairnessWeights[fairnessKey]
+	fairness = s.Config.FairnessWeights[fairnessKey]
 	return
 }
 
-var fairnessKeyWeights = map[string]int{
-	"high":   100,
-	"medium": 1000,
-	"low":    500,
-}
-
-var fairnessWeights = map[string]float64{
-	"high":   70.0,
-	"medium": 20.0,
-	"low":    10.0,
-}
-
 func (s *Simulation) randomFairnessKey() string {
-	return RandomKeyByWeight(s.r, fairnessKeyWeights)
+	if len(s.Config.FairnessKeyWeights) == 0 {
+		return ""
+	}
+	return RandomKeyByWeight(s.r, s.Config.FairnessKeyWeights)
 }
 
 func (s *Simulation) randomPriority() Priority {
-	priorityWeights := map[Priority]int{
-		P0: 10,
-		P1: 100,
-		P2: 10000,
-		P3: 100,
-		P4: 500,
+	if len(s.Config.PriorityWeights) == 0 {
+		return P2
 	}
-	return RandomKeyByWeight(s.r, priorityWeights)
+	return RandomKeyByWeight(s.r, s.Config.PriorityWeights)
 }
 
 func (s *Simulation) randomNewTaskCount(elapsedSinceLastTick time.Duration) int {
@@ -174,7 +165,7 @@ func (s *Simulation) randomNormal(desiredMean, desiredStdDev float64) float64 {
 	return RandomNormal(s.r, desiredMean, desiredStdDev)
 }
 
-type resultsByHour []*results
+type resultsByBucket []*results
 
 type results struct {
 	tasks []*Task

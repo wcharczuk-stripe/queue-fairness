@@ -19,7 +19,7 @@ type SimulationResults struct {
 	QueuedP95ByFairnessKey map[string]time.Duration
 }
 
-func (s *Simulation) processResults(finalTimestamp time.Time, state resultsByHour) (res SimulationResults) {
+func (s *Simulation) processResults(finalTimestamp time.Time, state resultsByBucket) (res SimulationResults) {
 	res.CountByPriority = make(map[Priority]int)
 	res.CountByFairnessKey = make(map[string]int)
 

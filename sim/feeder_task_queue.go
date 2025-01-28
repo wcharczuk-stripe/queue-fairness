@@ -10,6 +10,13 @@ type Limit struct {
 	Quantum time.Duration
 }
 
+// NewFeederTaskQueue returns a new feeder task queue with a given set of settings.
+//
+// The "feeder" task queue type tries to honor absolute rate limits across the fairness keys
+// as given by rates formed by counts and a duration of time (e.g. 1000 events per second).
+//
+// The net effect of this is strictly there is an upperbound to throughput for the system, which
+// may be desirable to limit the impact of bursts on downstream systems.
 func NewFeederTaskQueue(r *rand.Rand, c Clock, rateLimitsByFairnessKey map[string]Limit) TaskQueue {
 	rateLimiters := make(map[string]RateLimiter, len(rateLimitsByFairnessKey))
 	for key, lim := range rateLimitsByFairnessKey {

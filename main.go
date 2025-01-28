@@ -17,9 +17,9 @@ var (
 	flagCPUProfile = flag.Bool("cpu-profile", false, "if we should take a cpu profile")
 	flagQueueType  = flag.String("queue-type", "feeder", "which queue type to use (simple|priority|fairness|feeder)")
 
-	flagDuration           = flag.Duration("duration", sim.SimulationConfig{}.DurationOrDefault(), "the simulation duration")
-	flagCompactionInterval = flag.Duration("compaction-interval", sim.SimulationConfig{}.CompactionIntervalOrDefault(), "the simulation compaction interval")
-	flagTickInterval       = flag.Duration("tick-interval", sim.SimulationConfig{}.TickIntervalOrDefault(), "the simulation tick interval")
+	flagDuration                 = flag.Duration("duration", sim.SimulationConfig{}.DurationOrDefault(), "the simulation duration")
+	flagResultsBucketingInterval = flag.Duration("results-bucketing-interval", sim.SimulationConfig{}.ResultsBucketingIntervalOrDefault(), "the results bucketing interval")
+	flagTickInterval             = flag.Duration("tick-interval", sim.SimulationConfig{}.TickIntervalOrDefault(), "the simulation tick interval")
 
 	flagTaskMean   = flag.Duration("task-mean", sim.SimulationConfig{}.TaskDurationMeanOrDefault(), "the task duration mean")
 	flagTaskStdDev = flag.Duration("task-std-dev", sim.SimulationConfig{}.TaskDurationStdDevOrDefault(), "the task duration std dev")
@@ -28,11 +28,31 @@ var (
 func main() {
 	flag.Parse()
 	s := new(sim.Simulation)
+
 	s.Config.Duration = *flagDuration
-	s.Config.CompactionInterval = *flagCompactionInterval
+	s.Config.ResultsBucketingInterval = *flagResultsBucketingInterval
 	s.Config.TickInterval = *flagTickInterval
 	s.Config.TaskDurationMean = *flagTaskMean
 	s.Config.TaskDurationStdDev = *flagTaskStdDev
+
+	s.Config.PriorityWeights = map[sim.Priority]int{
+		sim.P0: 100,
+		sim.P1: 200,
+		sim.P2: 1000,
+		sim.P3: 400,
+		sim.P4: 200,
+	}
+	s.Config.FairnessKeyWeights = map[string]int{
+		"high":   100,
+		"medium": 1000,
+		"low":    500,
+	}
+	s.Config.FairnessWeights = map[string]float64{
+		"high":   70.0,
+		"medium": 20.0,
+		"low":    10.0,
+	}
+
 	s.RandSource = rand.NewPCG(rand.Uint64(), rand.Uint64())
 
 	if *flagRealTime {
@@ -61,7 +81,7 @@ func main() {
 
 	fmt.Printf("using task queue type:\t\t%v\n", *flagQueueType)
 	fmt.Printf("using simulation duration:\t%v\n", s.Config.DurationOrDefault())
-	fmt.Printf("using compaction interval:\t%v\n", s.Config.CompactionIntervalOrDefault())
+	fmt.Printf("using results bucketing interval:\t%v\n", s.Config.ResultsBucketingIntervalOrDefault())
 	fmt.Printf("using tick interval:\t\t%v\n", s.Config.TickIntervalOrDefault())
 	fmt.Printf("using tasks-per-second:\t\t%v\n", s.Config.TasksPerSecondOrDefault())
 	fmt.Printf("using tasks duration mean:\t\t%v\n", s.Config.TaskDurationMeanOrDefault())
@@ -80,11 +100,15 @@ func main() {
 		}
 	}
 
+	start := time.Now()
+
 	res := s.Simulate()
 	if *flagCPUProfile {
 		profileDone()
 	}
 
+	fmt.Println()
+	fmt.Printf("simulation complete! %v elapsed\n", time.Since(start).Round(time.Millisecond).String())
 	fmt.Println()
 	fmt.Printf("tasks processed: %d\n", res.TasksProcessed)
 	fmt.Printf("queued for \tp95: %v\tavg: %v\n", res.QueuedP95.Round(time.Millisecond).String(), res.QueuedAvg.Round(time.Millisecond).String())
